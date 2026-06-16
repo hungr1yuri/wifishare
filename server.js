@@ -1,4 +1,4 @@
-// wifishare — a tiny LocalSend-style file drop for your local network.
+// wifishare: a tiny LocalSend-style file drop for your local network.
 // Zero dependencies, just Node's built-ins. Start it, open the page on your
 // phone (same WiFi), and move files either way.
 //   node server.js

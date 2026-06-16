@@ -62,7 +62,6 @@
     border-radius: 8px; padding: 6px 10px; word-break: break-all;
   }
   .connect.hide { display: none; }
-  footer { margin-top: 30px; text-align: center; color: #586069; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -88,14 +87,12 @@
 
   <h3 class="section">Shared files</h3>
   <ul class="files" id="list"></ul>
-
-  <footer>same WiFi only · nothing leaves your network</footer>
 </div>
 
 <script src="/qrcode.min.js"></script>
 <script>
 // Show the QR for the phone-reachable address. The page may be open on the PC
-// (localhost) — so we ask the server for the real LAN address rather than using
+// at localhost, so we ask the server for the real LAN address rather than using
 // location.host, which would encode "localhost" and be useless to a phone.
 (async function showConnect() {
   try {
@@ -110,7 +107,7 @@
         correctLevel: QRCode.CorrectLevel.M,
       });
     }
-  } catch (e) { /* no info endpoint — just skip the card */ }
+  } catch (e) { /* no info endpoint, just skip the card */ }
 })();
 
 const drop = document.getElementById("drop");
@@ -143,7 +140,7 @@ async function refresh(force) {
   lastSig = sig;
 
   if (!files.length) {
-    list.innerHTML = '<div class="empty">Nothing shared yet — upload something or drop a file here.</div>';
+    list.innerHTML = '<div class="empty">Nothing shared yet. Upload something or drop a file here.</div>';
     return;
   }
   list.innerHTML = "";
