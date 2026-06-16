@@ -2,6 +2,5 @@ node_modules/
 *.log
 .DS_Store
 
-# Runtime share folder — user files dropped here, not part of the app
-shared/*
-!shared/.gitkeep
+# Runtime share folder, created on startup. User files are dropped here.
+shared/

@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>wifishare</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0d1117; color: #e6edf3; padding: env(safe-area-inset-top) 16px 40px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  header { display: flex; align-items: center; gap: 10px; padding: 22px 0 10px; }
+  header h1 { font-size: 20px; margin: 0; font-weight: 700; }
+  header .dot { width: 10px; height: 10px; border-radius: 50%; background: #3fb950; box-shadow: 0 0 8px #3fb950; }
+  .drop {
+    display: block; border: 2px dashed #30363d; border-radius: 16px; padding: 34px 20px;
+    text-align: center; background: #161b22; transition: .15s; cursor: pointer; margin-bottom: 14px;
+  }
+  .drop.hot { border-color: #58a6ff; background: #1b2330; }
+  .drop h2 { margin: 0 0 4px; font-size: 17px; }
+  .drop p { margin: 0; color: #8b949e; font-size: 14px; }
+  .drop .big { font-size: 34px; margin-bottom: 8px; }
+  input[type=file] { display: none; }
+  .bar { height: 6px; border-radius: 4px; background: #21262d; overflow: hidden; margin-top: 12px; display: none; }
+  .bar.show { display: block; }
+  .bar > div { height: 100%; width: 0; background: #58a6ff; transition: width .15s; }
+  h3.section { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: #8b949e; margin: 26px 0 10px; }
+  ul.files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  li.file {
+    display: flex; align-items: center; gap: 12px; background: #161b22;
+    border: 1px solid #21262d; border-radius: 12px; padding: 10px 12px;
+  }
+  li.file .thumb {
+    width: 46px; height: 46px; border-radius: 8px; flex: 0 0 auto; object-fit: cover;
+    background: #21262d; display: flex; align-items: center; justify-content: center; font-size: 22px;
+  }
+  li.file .meta { flex: 1; min-width: 0; }
+  li.file .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  li.file .sub { font-size: 13px; color: #8b949e; }
+  li.file a.dl, li.file button.del {
+    text-decoration: none; border: 1px solid #30363d; background: #21262d; color: #e6edf3;
+    border-radius: 8px; padding: 7px 12px; font-size: 14px; cursor: pointer; flex: 0 0 auto;
+  }
+  li.file a.dl { background: #238636; border-color: #2ea043; }
+  li.file button.del { padding: 7px 10px; }
+  .empty { color: #8b949e; font-size: 14px; text-align: center; padding: 18px; }
+  .connect {
+    display: flex; align-items: center; gap: 16px; background: #161b22; border: 1px solid #21262d;
+    border-radius: 16px; padding: 16px; margin-bottom: 14px;
+  }
+  .connect #qr { flex: 0 0 auto; background: #fff; padding: 8px; border-radius: 10px; line-height: 0; }
+  .connect #qr img, .connect #qr canvas { display: block; }
+  .connect .ctext { min-width: 0; }
+  .connect .ctext h2 { margin: 0 0 4px; font-size: 16px; }
+  .connect .ctext p { margin: 0; color: #8b949e; font-size: 13px; }
+  .connect .ctext .url {
+    display: inline-block; margin-top: 8px; font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 15px; color: #58a6ff; background: #0d1117; border: 1px solid #21262d;
+    border-radius: 8px; padding: 6px 10px; word-break: break-all;
+  }
+  .connect.hide { display: none; }
+  footer { margin-top: 30px; text-align: center; color: #586069; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><span class="dot"></span><h1>wifishare</h1></header>
+
+  <div class="connect hide" id="connect">
+    <div id="qr"></div>
+    <div class="ctext">
+      <h2>📱 Scan to connect</h2>
+      <p>Point your phone camera here, or type the address below. Same WiFi only.</p>
+      <span class="url" id="url">…</span>
+    </div>
+  </div>
+
+  <label class="drop" id="drop">
+    <div class="big">⬆️</div>
+    <h2>Tap to pick files, or drag them here</h2>
+    <p>They get saved onto the PC running this server</p>
+    <input type="file" id="picker" multiple>
+    <div class="bar" id="bar"><div id="barfill"></div></div>
+  </label>
+
+  <h3 class="section">Shared files</h3>
+  <ul class="files" id="list"></ul>
+
+  <footer>same WiFi only · nothing leaves your network</footer>
+</div>
+
+<script src="/qrcode.min.js"></script>
+<script>
+// Show the QR for the phone-reachable address. The page may be open on the PC
+// (localhost) — so we ask the server for the real LAN address rather than using
+// location.host, which would encode "localhost" and be useless to a phone.
+(async function showConnect() {
+  try {
+    const info = await fetch("/info").then(r => r.json());
+    const url = info.phoneURL;
+    document.getElementById("url").textContent = url;
+    document.getElementById("connect").classList.remove("hide");
+    if (window.QRCode) {
+      new QRCode(document.getElementById("qr"), {
+        text: url, width: 132, height: 132,
+        colorDark: "#0d1117", colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M,
+      });
+    }
+  } catch (e) { /* no info endpoint — just skip the card */ }
+})();
+
+const drop = document.getElementById("drop");
+const picker = document.getElementById("picker");
+const bar = document.getElementById("bar");
+const barfill = document.getElementById("barfill");
+const list = document.getElementById("list");
+
+const IMG = /\.(png|jpe?g|gif|webp|svg)$/i;
+const VID = /\.(mp4|webm|mov)$/i;
+
+function icon(name) {
+  if (/\.(mp3|wav|m4a|flac)$/i.test(name)) return "🎵";
+  if (VID.test(name)) return "🎬";
+  if (/\.(zip|rar|7z)$/i.test(name)) return "🗜️";
+  if (/\.pdf$/i.test(name)) return "📕";
+  if (/\.(txt|md|json|js|csv)$/i.test(name)) return "📄";
+  return "📦";
+}
+
+let polling = true;     // paused while uploading so the UI doesn't fight itself
+let lastSig = null;     // only re-render when the file set actually changes (no thumb flicker)
+
+async function refresh(force) {
+  if (!polling && !force) return;
+  let files;
+  try { files = await fetch("/files").then(r => r.json()); } catch { return; }
+  const sig = files.map(f => f.name + ":" + f.size + ":" + f.mtime).join("|");
+  if (sig === lastSig && !force) return;
+  lastSig = sig;
+
+  if (!files.length) {
+    list.innerHTML = '<div class="empty">Nothing shared yet — upload something or drop a file here.</div>';
+    return;
+  }
+  list.innerHTML = "";
+  for (const f of files) {
+    const li = document.createElement("li");
+    li.className = "file";
+    const enc = encodeURIComponent(f.name);
+    const thumb = IMG.test(f.name)
+      ? '<img class="thumb" src="/raw/' + enc + '" loading="lazy">'
+      : '<div class="thumb">' + icon(f.name) + '</div>';
+    li.innerHTML =
+      thumb +
+      '<div class="meta"><div class="name">' + f.name + '</div>' +
+      '<div class="sub">' + f.sizeText + '</div></div>' +
+      '<a class="dl" href="/download/' + enc + '">Save</a>' +
+      '<button class="del" data-name="' + f.name.replace(/"/g, "&quot;") + '">✕</button>';
+    list.appendChild(li);
+  }
+  list.querySelectorAll("button.del").forEach(b => {
+    b.onclick = async () => {
+      await fetch("/delete?name=" + encodeURIComponent(b.dataset.name), { method: "POST" });
+      refresh(true);
+    };
+  });
+}
+
+// Upload files in parallel (a few at a time) with a single byte-based progress bar.
+async function uploadAll(fileList) {
+  const files = [...fileList];
+  if (!files.length) return;
+  polling = false;
+  bar.classList.add("show");
+
+  const total = files.reduce((s, f) => s + f.size, 0) || 1;
+  const loaded = new Array(files.length).fill(0);
+  const draw = () => {
+    const done = loaded.reduce((a, b) => a + b, 0);
+    barfill.style.width = (done / total * 100).toFixed(1) + "%";
+  };
+
+  let next = 0;
+  const LIMIT = Math.min(4, files.length);   // a few concurrent uploads saturates a LAN nicely
+  async function worker() {
+    while (next < files.length) {
+      const i = next++;
+      try {
+        await uploadOne(files[i], (l) => { loaded[i] = l; draw(); });
+      } catch (e) { /* skip a failed file, keep going */ }
+      loaded[i] = files[i].size; draw();
+    }
+  }
+  await Promise.all(Array.from({ length: LIMIT }, worker));
+
+  setTimeout(() => { bar.classList.remove("show"); barfill.style.width = "0"; }, 400);
+  polling = true;
+  refresh(true);
+}
+
+function uploadOne(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/upload");
+    xhr.setRequestHeader("x-filename", encodeURIComponent(file.name));
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded); };
+    xhr.onload = () => (xhr.status < 400 ? resolve() : reject(new Error("HTTP " + xhr.status)));
+    xhr.onerror = () => reject(new Error("network error"));
+    xhr.send(file);
+  });
+}
+
+picker.addEventListener("change", () => uploadAll(picker.files));
+
+["dragenter", "dragover"].forEach(ev =>
+  drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("hot"); }));
+["dragleave", "drop"].forEach(ev =>
+  drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("hot"); }));
+drop.addEventListener("drop", e => uploadAll(e.dataTransfer.files));
+
+refresh(true);
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

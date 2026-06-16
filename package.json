@@ -1,0 +1,27 @@
+{
+  "name": "wifishare",
+  "version": "1.0.0",
+  "description": "Share files between your phone and PC over local WiFi. Zero dependencies, QR pairing.",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "author": "hungr1yuri",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hungr1yuri/wifishare.git"
+  },
+  "keywords": [
+    "file-transfer",
+    "lan",
+    "wifi",
+    "localsend",
+    "qr",
+    "zero-dependencies"
+  ]
+}
